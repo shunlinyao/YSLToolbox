@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- <link rel="icon" type="image/svg+xml" href="/resource/static/svelte/vite.svg" /> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>批量资源上传</title>
+    <link rel="stylesheet" href="/toolbox/static/downloader/css/downloader_panel.css">
+    <script src="/toolbox/static/downloader/js/downloader_panel.js"></script>
+    <script src="/toolbox/static/js/jquery.js"></script>
+  </head>
+  <body style='margin:0rem;'>
+    <div id="downloader_container" style="height:100vh;width:100vw"></div>
+    
+  </body>
+  <script type="module">
+    import { vm_ajax_util } from "/toolbox/static/js/vmajax.js";
+
+    window.onload = function () {
+        var _downloader_web_block = new downloader_web_block();
+        _downloader_web_block.vm_ajax_util = vm_ajax_util;
+        _downloader_web_block.init();
+    }
+</script>
+  
+</html>
