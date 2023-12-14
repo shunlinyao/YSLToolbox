@@ -22,15 +22,16 @@ class Upload_Function():
         try:
             json_data = json.dumps({'filename': filename, 'cmd': 'file_prepare'})
             response = self.http_request_post(target_url + '/upload/file', {'Content-Type':'application/json'}, json_data)
-            print(response)
             if 'res' in response:
+                file_size = os.path.getsize(file_path)
+                response['res']['file_size'] = file_size
                 return response['res']
             return response
         except Exception as e:
             print("prepare_upload ERROR====>",e,e.__traceback__,e.__traceback__.tb_lineno)
             return {"status": 0, "message": "Prepare upload failed."}
 
-    def uploading_file(self, file_path, target_url, rt_file_info, chunk_size=3*1024*1024):  # 3MB chunk size
+    def uploading_file(self, file_path, target_url, rt_file_info, chunk_size=5*1024*1024):  # 3MB chunk size
         print("uploading_file", file_path, target_url)
         try:
             file_name = os.path.basename(file_path)
@@ -53,7 +54,6 @@ class Upload_Function():
                     }
 
                     response = requests.post(url, files=files, data=data)
-                    print(response)
 
                     # Update the chunk_start for the next chunk
                     chunk_start += len(file_content)
@@ -69,6 +69,9 @@ class Upload_Function():
         try:
             json_data = json.dumps({'object_key':object_key, 'cmd':'file_end'})
             response = self.http_request_post(target_url + '/upload/file', {'Content-Type':'application/json'}, json_data)
+            if 'res' in response:
+                response['res']['id'] = rt_file_info['upload_id']
+                return response['res']
             return response
         except Exception as e:
             print("end_upload_file ERROR====>",e,e.__traceback__,e.__traceback__.tb_lineno)

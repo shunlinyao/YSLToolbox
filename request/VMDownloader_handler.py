@@ -1,6 +1,7 @@
 from modules.back.base_request import VMRequestHandler
 import service.downloader.SEDownloader_service as SEDownloader_service
 import modules.back.sys_pyutil as sys_pyutil
+import tornado.websocket as websocket
 import json
 import os
 
@@ -54,8 +55,9 @@ class VMDownloaderAPIHandler(VMRequestHandler):
         args = json.loads(self.request.body.decode("utf-8"))
         try:
             if os.path.exists(args['content']['path']):
-                path_tree = SEDownloader_service.instance().get_path_tree(args['content']['path'])
-                self.write({"status": 1, "message": "Path exists.", "path_tree": path_tree})
+                path_tree = SEDownloader_service.instance().get_path_same_level(args['content']['path'])
+                file_tag_relation = SEDownloader_service.instance().get_file_tag_info(args['content']['rs_type'])
+                self.write({"status": 1, "message": "Path exists.", "path_tree": path_tree, "file_tag_relation":file_tag_relation})
             else:
                 self.write({"status": 0, "message": "Path does not exist."})
         except Exception as e:
@@ -83,3 +85,18 @@ class VMDownloaderAPIHandler(VMRequestHandler):
     #     response_json = dict_object
     #     self.write(response_json)
 
+
+class VMDownloaderWebsocketHandler(websocket.WebSocketHandler):
+    def open(self):
+        print("WebSocket opened")
+
+    def on_message(self, message):
+        data = json.loads(message)
+        if data['cmd'] == 'bind_tag':
+            SEDownloader_service.instance().update_tag_file_relation(data['content']['resource_type'], data['content']['relation'])
+        print("WebSocket received message")
+
+    def on_close(self):
+        
+        print("WebSocket closed")
+    

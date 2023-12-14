@@ -7,10 +7,10 @@
     display: inline-block;
     font-size: 12px;
     font-weight: bold;
-    height: 24px;
+    height: 1.8rem;
     line-height: 24px;
     margin: 0 5px 0 0;
-    padding: 0 10px;
+    padding: 0 15px;
     text-decoration: none;
     text-shadow: 0 1px 0 #fff;
     white-space: nowrap;
@@ -21,6 +21,31 @@
     border-color: #adadad;
     color: #333;
     text-decoration: none;
+}
+
+.dld_type_btn {
+  background: #fdfdfd;
+  border: 1px solid #ccc;
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  border-radius: 0.1rem;
+  font-size: 12px;
+  font-weight: bold;
+  height: 1.8rem;
+  line-height: 24px;
+  margin: 0 0.2rem 0 0;
+  padding: 0 15px;
+  text-decoration: none;
+  text-shadow: 0 1px 0 #fff;
+  white-space: nowrap;
+}
+
+.dld_type_btn:hover {
+  background: #ebebeb;
+  border-color: #adadad;
+  color: #333;
+  text-decoration: none;
 }
 
 .dld_input {
@@ -35,6 +60,58 @@
     text-decoration: none;
     white-space: nowrap;
 }
+
+.dld_base_div {
+  border: 1px solid #aaa;
+  border-radius:0.4rem;
+  padding:0.3rem;
+  width:98%;
+}
+
+.file_grid_div {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr); /* 5 columns of equal width */
+  grid-gap: 0.5rem; /* Space between grid items */
+  /* Add other styling as needed */
+}
+
+.grid_file_button {
+  /* Styles for buttons */
+  padding: 0.4rem;
+  margin: 0;
+  border: 1px solid #ccc;
+  background-color: #f8f8f8;
+  height:2.2rem;
+  border-radius: 0.2rem;
+  overflow: hidden;
+  /* Add other styling as needed */
+}
+
+.grid_file_button:hover {
+  background-color: #ebebeb;
+  cursor: pointer;
+}
+
+.grid_tag_button {
+  /* Styles for buttons */
+  padding: 0.2rem 0.6rem;
+  margin: 0;
+  margin-bottom: 0.4rem;
+  margin-right: 0.5rem;
+  border: 1px solid #ccc;
+  background-color: #f8f8f8;
+  height:1.6rem;
+  border-radius: 0.2rem;
+
+  /* Add other styling as needed */
+}
+
+.grid_tag_button:hover {
+  background-color: #ebebeb;
+  cursor: pointer;
+  /* Add other styling as needed */
+}
+
 /* -----------------------------------------------------------scroll bar style---------------------------------------------------- */
 /* width */
 ::-webkit-scrollbar {
