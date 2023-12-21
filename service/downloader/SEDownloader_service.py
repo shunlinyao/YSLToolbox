@@ -19,7 +19,7 @@ class CSYDownloaderService():
         out_file_json = {}
         
         for type_folder_path in type_path_tree:
-            rs_type = os.path.basename(path)
+            rs_type = os.path.basename(type_folder_path)
             type_file_tree = self.get_path_same_level(type_folder_path)
             for file_path in type_file_tree:
                 self.start_upload_file_helper(file_path, target_url, rs_type, type_folder_path)
@@ -39,22 +39,29 @@ class CSYDownloaderService():
         rt_file_info = self.upload_method.prepare_upload(file_path, target_url, file_name)
         if 'status'in rt_file_info and rt_file_info['status'] == 0:
             return rt_file_info
-
-        rs_return = self.create_new_resource(rt_file_info, target_url, file_name, rs_type)
-
-        rt_uploading = self.upload_method.uploading_file(file_path, target_url, rt_file_info)
-        if 'status'in rt_uploading and rt_uploading['status'] == 0:
+        md5_code = self.upload_method.get_md5_code(file_path)
+        md5_exist_b = self.check_if_md5_exist(md5_code, target_url)
+        if md5_exist_b == False:
+            rs_return = self.create_new_resource(rt_file_info, target_url, file_name, rs_type, md5_code)
+            tag_list = self.get_file_tag_list(rs_type, file_path)
+            tag_return = self.add_resource_tag_request(rt_file_info, target_url, tag_list, rs_type)
+            rt_uploading = self.upload_method.uploading_file(file_path, target_url, rt_file_info)
+            if 'status'in rt_uploading and rt_uploading['status'] == 0:
+                return rt_uploading
+            
+            icon_info = self.bind_file_icon(file_name, target_url, local_path)
+            finish_rt = self.update_new_resource(rt_uploading, target_url, icon_info)
+            print("resouce finished uploading", file_name, rt_uploading)
             return rt_uploading
-        icon_url = self.bind_file_icon(file_name, target_url, local_path)
-        finish_rt = self.update_new_resource(rt_uploading, target_url, icon_url)
-        print("resouce finished uploading", file_name, rt_uploading)
-        return rt_uploading
+        else:
+            print("resouce already exist", file_name)
+            return {"status": 1, "message": "Resource already exist."}
     
     def bind_file_icon(self, file_name, target_url, local_path):
         new_icon_url = ''
         icon_path = local_path + '/icon'
         new_icon_path = ''
-
+        icon_info = {}
         file_base_name, _  = os.path.splitext(file_name)
         if os.path.exists(icon_path):
             path_tree = self.get_path_same_level(icon_path)
@@ -63,10 +70,10 @@ class CSYDownloaderService():
                     new_icon_path = file
                     break
             if new_icon_path != '':
-                new_icon_url = self.upload_icon(new_icon_path, target_url, 'image')
-            if 'status' in new_icon_url and new_icon_url['status'] == 0:
+                icon_info = self.upload_icon(new_icon_path, target_url, 'image')
+            if 'status' in icon_info and icon_info['status'] == 0:
                 return ''
-        return new_icon_url
+        return icon_info
     
     def upload_icon(self, file_path, target_url, folder_name):
         file_name = os.path.basename(file_path)
@@ -80,15 +87,16 @@ class CSYDownloaderService():
             print('ICON prepare_upload failed', file_name)
             return rt_file_info
         rs_type = folder_name
-        rs_return = self.create_new_resource(rt_file_info, target_url, file_name, rs_type)
+        # rs_return = self.create_new_resource(rt_file_info, target_url, file_name, rs_type, [], '')
 
         rt_uploading = self.upload_method.uploading_file(file_path, target_url, rt_file_info)
         if 'status'in rt_uploading and rt_uploading['status'] == 0:
             print('ICON upload failed', file_name)
             return rt_uploading
-        finish_rt = self.update_new_resource(rt_uploading, target_url, rt_uploading['url'])
+        icon_info = {'url': rt_uploading['url'], 'bucket_name': rt_file_info['bucket_name'], 'object_key': rt_file_info['object_key']}
+        # finish_rt = self.update_new_resource(rt_uploading, target_url, rt_uploading['url'])
         print("finished icon uploading", file_name, rt_uploading)
-        return rt_uploading['url']
+        return icon_info
 
     def http_request_post(self, url, headers, params):
         reqRes = None
@@ -147,17 +155,28 @@ class CSYDownloaderService():
         tag_file_relation = self.get_tag_file_relation()
         tag_file_relation['resource_tag_relation'][type] = value
         self.set_tag_file_relation(tag_file_relation)
+    
+    def update_tag_list(self, type, value):
+        tag_file_relation = self.get_tag_file_relation()
+        if value not in tag_file_relation['resouce_tag'][type]:
+            tag_file_relation['resouce_tag'][type].append(value)
+        self.set_tag_file_relation(tag_file_relation)
 
     def get_tag_file_relation(self):
         with open('doc/downloader/tag_file_match.json', 'r') as f:
             tag_file_relation = json.load(f)
         return tag_file_relation
     
+    def get_file_tag_list(self, type, file_path):
+        tag_file_relation = self.get_tag_file_relation()
+        tag_list = tag_file_relation['resource_tag_relation'][type][file_path]
+        return tag_list
+
     def set_tag_file_relation(self, tag_file_relation):
         with open('doc/downloader/tag_file_match.json', 'w') as f:
             json.dump(tag_file_relation, f)
 
-    def create_new_resource(self, file_info, target_url, filename, rs_type):
+    def create_new_resource(self, file_info, target_url, filename, rs_type, md5_code):
         input_url = target_url + '/resource/api?command=getresourcedata'
         param = {
             'type': 'add',
@@ -175,10 +194,12 @@ class CSYDownloaderService():
                 'object_key': file_info['object_key']
             }
         };
+        if md5_code != '':
+            param['content']['md5'] = md5_code
         response = self.http_request_post(input_url, {'Content-Type' : 'application/json'}, param)
         return response
 
-    def update_new_resource(self, file_info, target_url, icon_url):
+    def update_new_resource(self, file_info, target_url, icon_info):
         input_url = target_url + '/resource/api?command=getresourcedata'
         param = {
             'type': 'update',
@@ -188,10 +209,41 @@ class CSYDownloaderService():
                 'upload_status': 'finished'
             }
         };
-        if icon_url != '':
-            param['content']['icon'] = icon_url
+        if icon_info != {}:
+            param['content']['icon'] = icon_info['url']
+            param['content']['icon_bucket_name'] = icon_info['bucket_name']
+            param['content']['icon_object_key'] = icon_info['object_key']
         response = self.http_request_post(input_url, {'Content-Type' : 'application/json'}, param)
         return response
+
+    def add_resource_tag_request(self, file_info, target_url, tag_list, rs_type):
+        input_url = target_url + '/resource/api?command=getresourcesub'
+        param = {
+            'type': 'add_multi_tag',
+            'content': {
+                'id': file_info['upload_id'],
+                'tag_list': tag_list,
+                'rs_type': rs_type
+            }
+        };
+        response = self.http_request_post(input_url, {'Content-Type' : 'application/json'}, param)
+        return response
+
+    def check_if_md5_exist(self, md5_code, target_url):
+        input_url = target_url + '/resource/api?command=getresourcedata'
+        param = {
+            'type': 'check_md5',
+            'content': {
+                'md5': md5_code
+            }
+        };
+        response = self.http_request_post(input_url, {'Content-Type' : 'application/json'}, param)
+        str_object = response.content.decode('utf-8')
+        dict_object = json.loads(str_object)
+        if 'if_exist' in dict_object:
+            if dict_object['if_exist'] == True:
+                return True
+        return False
 
 def instance():
     return CSYDownloaderService()

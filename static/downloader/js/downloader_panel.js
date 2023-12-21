@@ -36,8 +36,7 @@ downloader_web_block.prototype.init_layout = function () {
                 </div>
                 
                 <div style="width:97%; border: 2px solid #ffec00;border-radius:0.4rem; padding:0.2rem;display:inline-block;margin-top:0.8rem;">
-                    <button id="ls_tag_retrieve" class="dld_btn" style="width:100%;">获取标签库</button>
-                    <input id="ls_tag_name" type="text" class="dld_input" placeholder="新标签" style="width:97%;margin-top:0.2rem;">
+                    <input id="ls_tag_name" type="text" class="dld_input" placeholder="新标签" style="width:97%;">
                     <button id="ls_tag_add" class="dld_btn" style="margin-top:0.2rem;width:100%;">添加标签</button>
                 </div>
                 
@@ -79,9 +78,6 @@ downloader_web_block.prototype.init_listener = function () {
     $('#ls_confirm').click(function () {
         that.test_path('local_path_check');
     });
-    $('#ls_find_localpath').click(function () {
-        that.test_path('local_path_tree');
-    });
     $('#ls_start_upload').click(function () {
         that.test_path('start_upload');
     });
@@ -91,6 +87,9 @@ downloader_web_block.prototype.init_listener = function () {
         let rs_type = $(this).val();
         that.slect_type_path(rs_type);
         that.current_selected_type = rs_type;
+    });
+    $('#ls_tag_add').click(function () {
+        that.tag_handler_action('add_tag');
     });
 }
 
@@ -103,16 +102,47 @@ downloader_web_block.prototype.test_connection = function () {
     }
     let request_content = { 'url': that.target_url, 'header': {'Content-Type' : 'application/json'}, 'body':{} };
     that.resource_action('test_connection', request_content);
-    // $.ajax({
-    //     url: that.target_url,
-    //     type: 'GET',
-    //     success: function (data) {
-    //         alert('连接成功');
-    //     },
-    //     error: function (err) {
-    //         alert('连接失败');
-    //     }
-    // });
+}
+
+downloader_web_block.prototype.tag_handler_action = function (cmd) {
+    let that = this;
+    let tag_name = $('#ls_tag_name').val();
+    if (tag_name == '') {
+        alert('标签名不能为空');
+        return;
+    }
+    if (that.current_selected_type == '') {
+        alert('请先选择资源类型');
+        return;
+    }
+    that.tag_list.push(tag_name);
+    let tag_container = $('#type_tag_container');
+    
+    let request_content = { 'tag_name': tag_name, 'resource_type': that.current_selected_type};
+    that.resource_action(cmd, request_content);
+    let tag_button = $(`<button class="grid_tag_button" value="${tag_name}">` + tag_name + `</button>`);
+    // tag_button onlick
+    tag_button.click(function () {
+        let selected_tag = $(this).val();
+        if (that.selected_file == '') {
+            alert('请先选择文件');
+            return;
+        }
+        if (!(that.selected_file in that.file_tag_relation)){
+            that.file_tag_relation[that.selected_file] = []
+        }
+        if (that.file_tag_relation[that.selected_file].includes(selected_tag)) {
+            let index = that.file_tag_relation[that.selected_file].indexOf(selected_tag);
+            that.file_tag_relation[that.selected_file].splice(index, 1);
+            $(this).css('background-color', '#fafafa');
+        }
+        else {
+            that.file_tag_relation[that.selected_file].push(selected_tag);
+            $(this).css('background-color', '#ebebeb');
+        }
+        that.bind_file_tag();
+    });
+    tag_container.append(tag_button);
 }
 
 downloader_web_block.prototype.test_path = function (cmd) {
@@ -197,6 +227,9 @@ downloader_web_block.prototype.return_action_handler = function (cmd, in_json) {
             that.file_tag_relation = in_json['file_tag_relation']['file_json'];
         }
     }
+    else if (cmd == 'add_tag') {
+
+    }
 }
 
 downloader_web_block.prototype.fill_tag_container = function (tag_list) {
@@ -219,7 +252,7 @@ downloader_web_block.prototype.fill_tag_container = function (tag_list) {
         if (that.file_tag_relation[that.selected_file].includes(selected_tag)) {
             let index = that.file_tag_relation[that.selected_file].indexOf(selected_tag);
             that.file_tag_relation[that.selected_file].splice(index, 1);
-            $(this).css('background-color', '#f8f8f8');
+            $(this).css('background-color', '#fafafa');
         }
         else {
             that.file_tag_relation[that.selected_file].push(selected_tag);
@@ -239,8 +272,8 @@ downloader_web_block.prototype.fill_file_container = function (file_list) {
         file_container.append(file_button);
     }
     $('.grid_file_button').click(function () {
-        $('.grid_tag_button').css('background-color', '#f8f8f8');
-        $('.grid_file_button').css('background-color', '#f8f8f8');
+        $('.grid_tag_button').css('background-color', '#fafafa');
+        $('.grid_file_button').css('background-color', '#fafafa');
         $(this).css('background-color', '#ebebeb');
         let selected_file = $(this).val();
         that.selected_file = selected_file;
@@ -287,6 +320,9 @@ downloader_web_block.prototype.user_terminal_input = function (cmd, content) {
     }
     else if (cmd == 'start_upload') {
         new_text += '开始上传 PATH - ' + content['path'];
+    }
+    else if (cmd == 'add_tag') {
+        new_text += '添加标签 NAME - ' + content['tag_name'];
     }
     else {
         new_text += '未知命令';
@@ -337,6 +373,14 @@ downloader_web_block.prototype.return_terminal_input = function (cmd, json) {
         }
         else {
             new_text += '上传成功';
+        }
+    }
+    else if (cmd == 'add_tag') {
+        if (json['status'] == 0) {
+            new_text += '添加标签失败';
+        }
+        else {
+            new_text += '添加标签成功';
         }
     }
     else {

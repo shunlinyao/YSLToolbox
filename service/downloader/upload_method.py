@@ -1,6 +1,7 @@
 import requests
 import json
 import os
+import hashlib
 
 class Upload_Function():
     def __init__(self):
@@ -88,6 +89,15 @@ class Upload_Function():
             str_object = reqRes.content.decode('utf-8')
             dict_object = json.loads(str_object)
         return dict_object
+
+    def get_md5_code(self, file_path):
+        md5_code = ''
+        try:
+            with open(file_path, 'rb') as f:
+                md5_code = hashlib.md5(f.read()).hexdigest()
+        except Exception as e:
+            print("get_md5_code ERROR====>",e,e.__traceback__,e.__traceback__.tb_lineno)
+        return md5_code
 
 def instance():
     return Upload_Function()

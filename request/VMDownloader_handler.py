@@ -23,6 +23,8 @@ class VMDownloaderAPIHandler(VMRequestHandler):
             self.local_path_tree_helper()
         if command == "start_upload":
             self.start_upload_helper()
+        if command == "add_tag":
+            self.add_tag_helper()
 
     def test_connection_helper(self):
         args = json.loads(self.request.body.decode("utf-8"))
@@ -70,6 +72,10 @@ class VMDownloaderAPIHandler(VMRequestHandler):
         SEDownloader_service.instance().start_upload_folder_helper(path)
         self.write({"status": 1, "message": "Upload started."})
 
+    def add_tag_helper(self):
+        args = json.loads(self.request.body.decode("utf-8"))
+        SEDownloader_service.instance().update_tag_list(args['content']['resource_type'], args['content']['tag_name'])
+        self.write({"status": 1, "message": "Tag added."})
     # def sent_request_helper(self):
     #     args = json.loads(self.request.body.decode("utf-8"))
     #     if args['cmd'] == 'GET':

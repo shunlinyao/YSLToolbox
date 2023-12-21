@@ -1,5 +1,7 @@
 import os
+import sys
 import tornado.ioloop
+import signal
 import tornado.web
 import debugpy
 from tornado.web import StaticFileHandler
@@ -9,6 +11,10 @@ class MainHandler(tornado.web.RequestHandler):
     def get(self):
         print("Request received")
         self.write("Hello, World!")
+
+def signal_handler(sig, frame):
+    tornado.ioloop.IOLoop.current().stop()
+    print("Server stopped")
 
 def make_app():
     static_path = os.path.join(os.path.dirname(__file__), "static")
@@ -21,15 +27,19 @@ def make_app():
     ], debug=True)  # Set debug mode
 
 if __name__ == "__main__":
-    # Start a debugpy listener
-    debugpy.listen(('localhost', 5678))
-    print("Waiting for debugger attach")
-    debugpy.wait_for_client()
-    debugpy.breakpoint()
-    print("Debugger attached")
+    debug_mode = os.getenv("DEBUG_MODE", "false").lower() == "true"
+
+    if debug_mode:
+        # Start a debugpy listener
+        import tornado.autoreload
+        tornado.autoreload.start()
+        debugpy.listen(('localhost', 5678))
+        print("Debug server running on port 5678")
 
     port = 8888
     app = make_app()
     app.listen(port)
     print(f"Server started at port {port}")
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     tornado.ioloop.IOLoop.current().start()
