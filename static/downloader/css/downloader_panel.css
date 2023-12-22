@@ -112,6 +112,25 @@
   /* Add other styling as needed */
 }
 
+.grid_folder_tag_button {
+  /* Styles for buttons */
+  padding: 0.1rem 0.3rem;
+  margin: 0;
+  margin-bottom: 0.2rem;
+  border: 1px solid #ccc;
+  background-color: #f8f8f8;
+  height:1.4rem;
+  border-radius: 0.2rem;
+
+  /* Add other styling as needed */
+}
+
+.grid_folder_tag_button:hover {
+  background-color: #ebebeb;
+  cursor: pointer;
+  /* Add other styling as needed */
+}
+
 /* -----------------------------------------------------------scroll bar style---------------------------------------------------- */
 /* width */
 ::-webkit-scrollbar {

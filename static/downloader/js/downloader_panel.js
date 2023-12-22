@@ -32,7 +32,9 @@ downloader_web_block.prototype.init_layout = function () {
                         <button class="dld_type_btn" value="cg" style="width:25%;">图文</button>
                         <button class="dld_type_btn" value="scene" style="width:25%;margin:0px;">场景</button>
                     </div>
-                    
+                    <div id="file_tag_container" style="width:98%; max-height:4rem; display:block;overflow-y:auto;border: 1px solid #ccc;margin-top:0.2rem;padding:0.2rem;padding-bottom:0rem;">
+                        <button class="grid_folder_tag_button" value="1">资源根目录</button>
+                    </div>                    
                 </div>
                 
                 <div style="width:97%; border: 2px solid #ffec00;border-radius:0.4rem; padding:0.2rem;display:inline-block;margin-top:0.8rem;">
@@ -51,9 +53,9 @@ downloader_web_block.prototype.init_layout = function () {
                     </div>
                     <div style="height:50%; width:98%; margin-top:2%; border: 1px solid #333;background-color:#222; border-radius:0.2rem;padding:0.3rem;">
                         <textarea id="terminal_area" style="color:#fff;height:100%; width:100%;resize:none;border:none;background-color:#222;"disabled></textarea>
-                    </div>  
+                    </div>
                 </div>
-                <button id="ls_start_upload" class="dld_btn" style="margin-top:0.6rem;border:2px solid #333;">开始上传</button>
+                <button id="ls_start_upload" class="dld_btn" style="margin-top:0.3rem;border:2px solid #333;">开始上传</button>
             </div>
             
             <div style="height:100%; width:70%; display:flex; flex-direction:column;padding:0.2rem;">
@@ -79,17 +81,28 @@ downloader_web_block.prototype.init_listener = function () {
         that.test_path('local_path_check');
     });
     $('#ls_start_upload').click(function () {
-        that.test_path('start_upload');
+        if (confirm('确定开始上传？') == true) {
+            that.test_path('start_upload');
+        }
     });
     $('.dld_type_btn').click(function () {
         $('.dld_type_btn').css('background-color', '#fdfdfd');
         $(this).css('background-color', '#ebebeb');
         let rs_type = $(this).val();
-        that.slect_type_path(rs_type);
         that.current_selected_type = rs_type;
+        that.slect_type_path(rs_type);
+        
     });
     $('#ls_tag_add').click(function () {
         that.tag_handler_action('add_tag');
+    });
+    $('.grid_folder_tag_button').click(function () {
+        $('.grid_folder_tag_button').css('background-color', '#fafafa');
+        $(this).css('background-color', '#ebebeb');
+        let folder_tag = $(this).val();
+        that.current_selected_folder_tag = folder_tag;
+        that.select_type_folder_tag(folder_tag);
+        
     });
 }
 
@@ -166,6 +179,17 @@ downloader_web_block.prototype.slect_type_path = function (type) {
     that.resource_action('local_path_tree', request_content);
 }
 
+downloader_web_block.prototype.select_type_folder_tag = function (folder_tag) {
+    let that = this;
+    if (that.target_path == '') {
+        alert('路径不能为空');
+        return;
+    }
+    let request_content = { 'path': that.target_path + '/' + type, 'rs_type': type, 'folder_tag':folder_tag};
+    that.resource_action('local_path_tag_tree', request_content);
+}
+
+
 downloader_web_block.prototype.resource_action = function (cmd, content) {
     let that = this;
     let param = { 'type': cmd, 'content': content };
@@ -216,6 +240,12 @@ downloader_web_block.prototype.terminal_display = function (json) {
 downloader_web_block.prototype.return_action_handler = function (cmd, in_json) {
     let that = this;
     if (cmd == 'local_path_tree') {
+        if ('path_tree' in in_json) {
+            let path_list = in_json['path_tree'];
+            that.fill_file_container(path_list);
+        }
+    }
+    else if (cmd == 'local_path_tag_tree') {
         if ('path_tree' in in_json) {
             let path_list = in_json['path_tree'];
             that.fill_file_container(path_list);

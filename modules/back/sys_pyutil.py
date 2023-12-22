@@ -11,20 +11,9 @@ import uuid
 import base64
 import os
 import signal
-from Crypto.Cipher import AES
 
 logging.getLogger("request").setLevel(logging.WARNING)
 #print 语法修改
-
-#AES解密
-def decrypt_AES(enStr, key, iv):
-    cipher = AES.new(key, AES.MODE_ECB, iv)
-    # enStr += (len(enStr) % 4)*"="
-    # decryptByts = base64.urlsafe_b64decode(enStr)
-    decryptByts = base64.b64decode(enStr)
-    msg = cipher.decrypt(decryptByts)
-    paddingLen = msg[len(msg) - 1]
-    return msg[0:-paddingLen]
 
 #平台所用加密算法
 def platform_md5(passwd, passsalt):

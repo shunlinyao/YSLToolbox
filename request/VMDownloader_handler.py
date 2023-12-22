@@ -21,6 +21,8 @@ class VMDownloaderAPIHandler(VMRequestHandler):
             self.local_path_check_helper()
         if command == "local_path_tree":
             self.local_path_tree_helper()
+        if command == "local_path_tag_tree":
+            self.local_path_tag_tree_helper()
         if command == "start_upload":
             self.start_upload_helper()
         if command == "add_tag":
@@ -57,14 +59,28 @@ class VMDownloaderAPIHandler(VMRequestHandler):
         args = json.loads(self.request.body.decode("utf-8"))
         try:
             if os.path.exists(args['content']['path']):
-                path_tree = SEDownloader_service.instance().get_path_same_level(args['content']['path'])
+                path_tree = SEDownloader_service.instance().get_folder_same_level(args['content']['path'])
+                # file_tag_relation = SEDownloader_service.instance().get_file_tag_info(args['content']['rs_type'])
+                self.write({"status": 1, "message": "Path exists.", "path_tree": path_tree})
+            else:
+                self.write({"status": 0, "message": "Path does not exist."})
+        except Exception as e:
+            print("ERROR====>",e,e.__traceback__,e.__traceback__.tb_lineno)
+            self.write({"status": 0, "message": "Path does not exist."})       
+
+    def local_path_tag_tree_helper(self):
+        args = json.loads(self.request.body.decode("utf-8"))
+        try:
+            if os.path.exists(args['content']['path']):
+                tag_folder_path = args['content']['path'] + args['content']['folder_tag']
+                path_tree = SEDownloader_service.instance().get_path_same_level(tag_folder_path)
                 file_tag_relation = SEDownloader_service.instance().get_file_tag_info(args['content']['rs_type'])
                 self.write({"status": 1, "message": "Path exists.", "path_tree": path_tree, "file_tag_relation":file_tag_relation})
             else:
                 self.write({"status": 0, "message": "Path does not exist."})
         except Exception as e:
             print("ERROR====>",e,e.__traceback__,e.__traceback__.tb_lineno)
-            self.write({"status": 0, "message": "Path does not exist."})       
+            self.write({"status": 0, "message": "Path does not exist."})
 
     def start_upload_helper(self):
         args = json.loads(self.request.body.decode("utf-8"))

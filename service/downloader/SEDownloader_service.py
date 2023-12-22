@@ -221,9 +221,9 @@ class CSYDownloaderService():
         param = {
             'type': 'add_multi_tag',
             'content': {
-                'id': file_info['upload_id'],
+                'rs_id': file_info['upload_id'],
                 'tag_list': tag_list,
-                'rs_type': rs_type
+                'type': rs_type
             }
         };
         response = self.http_request_post(input_url, {'Content-Type' : 'application/json'}, param)
