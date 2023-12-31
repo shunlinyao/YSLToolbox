@@ -77,13 +77,14 @@
 
 .grid_file_button {
   /* Styles for buttons */
-  padding: 0.4rem;
+  padding: 0.3rem;
   margin: 0;
   border: 1px solid #ccc;
   background-color: #f8f8f8;
-  height:2.2rem;
+  height:4.2rem;
   border-radius: 0.2rem;
   overflow: hidden;
+  display: inline-block;
   /* Add other styling as needed */
 }
 
@@ -117,11 +118,11 @@
   padding: 0.1rem 0.3rem;
   margin: 0;
   margin-bottom: 0.2rem;
+  margin-right: 0.3rem;
   border: 1px solid #ccc;
   background-color: #f8f8f8;
   height:1.4rem;
   border-radius: 0.2rem;
-
   /* Add other styling as needed */
 }
 

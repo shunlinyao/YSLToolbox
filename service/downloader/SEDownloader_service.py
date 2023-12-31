@@ -19,10 +19,15 @@ class CSYDownloaderService():
         out_file_json = {}
         
         for type_folder_path in type_path_tree:
+            if os.path.basename(type_folder_path) == 'icon':
+                continue            
             rs_type = os.path.basename(type_folder_path)
-            type_file_tree = self.get_path_same_level(type_folder_path)
-            for file_path in type_file_tree:
-                self.start_upload_file_helper(file_path, target_url, rs_type, type_folder_path)
+            for folder_tag_path in self.get_folder_same_level(type_folder_path):
+                if os.path.basename(folder_tag_path) == 'icon':
+                    continue
+                folder_tag_tree = self.get_path_same_level(folder_tag_path)
+                for file_path in folder_tag_tree:
+                    self.start_upload_file_helper(file_path, target_url, rs_type, folder_tag_path)
     
     def start_upload_file_helper(self, file_path, target_url,rs_type, path):
         print("start_upload_file_helper", file_path)
@@ -50,7 +55,7 @@ class CSYDownloaderService():
                 return rt_uploading
             
             icon_info = self.bind_file_icon(file_name, target_url, local_path)
-            finish_rt = self.update_new_resource(rt_uploading, target_url, icon_info)
+            finish_rt = self.update_new_resource(rt_uploading, target_url, icon_info,tag_list)
             print("resouce finished uploading", file_name, rt_uploading)
             return rt_uploading
         else:
@@ -143,12 +148,12 @@ class CSYDownloaderService():
         self.set_downloader_json(downloader_json)
 
     def get_downloader_json(self):
-        with open('doc/downloader/download_path.json', 'r') as f:
+        with open('doc/downloader/download_path.json', 'r', encoding='utf-8') as f:
             downloader_json = json.load(f)
         return downloader_json
 
     def set_downloader_json(self, downloader_json):
-        with open('doc/downloader/download_path.json', 'w') as f:
+        with open('doc/downloader/download_path.json', 'w', encoding='utf-8') as f:
             json.dump(downloader_json, f)
 
     def update_tag_file_relation(self, type, value):
@@ -163,17 +168,20 @@ class CSYDownloaderService():
         self.set_tag_file_relation(tag_file_relation)
 
     def get_tag_file_relation(self):
-        with open('doc/downloader/tag_file_match.json', 'r') as f:
+        with open('doc/downloader/tag_file_match.json', 'r', encoding='utf-8') as f:
             tag_file_relation = json.load(f)
         return tag_file_relation
     
     def get_file_tag_list(self, type, file_path):
         tag_file_relation = self.get_tag_file_relation()
+        if file_path not in tag_file_relation['resource_tag_relation'][type]:
+            tag_file_relation['resource_tag_relation'][type][file_path] = []
+            return []
         tag_list = tag_file_relation['resource_tag_relation'][type][file_path]
         return tag_list
 
     def set_tag_file_relation(self, tag_file_relation):
-        with open('doc/downloader/tag_file_match.json', 'w') as f:
+        with open('doc/downloader/tag_file_match.json', 'w', encoding='utf-8') as f:
             json.dump(tag_file_relation, f)
 
     def create_new_resource(self, file_info, target_url, filename, rs_type, md5_code):
@@ -199,7 +207,7 @@ class CSYDownloaderService():
         response = self.http_request_post(input_url, {'Content-Type' : 'application/json'}, param)
         return response
 
-    def update_new_resource(self, file_info, target_url, icon_info):
+    def update_new_resource(self, file_info, target_url, icon_info,tag_list):
         input_url = target_url + '/resource/api?command=getresourcedata'
         param = {
             'type': 'update',
@@ -209,6 +217,10 @@ class CSYDownloaderService():
                 'upload_status': 'finished'
             }
         };
+        if len(tag_list) > 0:
+            stringfy_tag_list = ''
+            stringfy_tag_list = ','.join(tag_list)
+            param['content']['tag'] = stringfy_tag_list
         if icon_info != {}:
             param['content']['icon'] = icon_info['url']
             param['content']['icon_bucket_name'] = icon_info['bucket_name']
@@ -245,5 +257,30 @@ class CSYDownloaderService():
                 return True
         return False
 
+    def local_path_organizer(self, path):
+        root_folder_name = os.path.basename(path)
+        if root_folder_name != 'file':
+            #return error
+            return {"status": 0, "message": "wrong root path"}
+        type_path_tree = self.get_folder_same_level(path)
+        for type_folder_path in type_path_tree:
+            folder_tag_path_tree = self.get_folder_same_level(type_folder_path)
+            rs_type = os.path.basename(type_folder_path)
+            for folder_tag_path in folder_tag_path_tree:
+                file_path_tree = self.get_path_same_level(folder_tag_path)
+                
+                folder_tag = os.path.basename(folder_tag_path)
+                if folder_tag == 'icon':
+                    continue
+                self.update_tag_list(rs_type, folder_tag)
+                if len(file_path_tree) == 0:
+                    continue
+                for file_path in file_path_tree:
+                    file_name = os.path.basename(file_path)
+                    tag_list = self.get_file_tag_list(rs_type, file_path)
+                    if folder_tag not in tag_list: 
+                        tag_list.append(folder_tag)
+                        self.update_tag_file_relation(rs_type, {file_path: tag_list})
+        return {"status": 1, "message": "Path do exist."}
 def instance():
     return CSYDownloaderService()

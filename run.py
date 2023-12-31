@@ -5,7 +5,7 @@ import signal
 import tornado.web
 import debugpy
 from tornado.web import StaticFileHandler
-from request.VMDownloader_handler import VMDownloaderAPIHandler, VMDownloaderPageHandler, VMDownloaderWebsocketHandler
+from request.VMDownloader_handler import VMDownloaderAPIHandler, VMDownloaderPageHandler, VMDownloaderWebsocketHandler, VMDownloaderIconHandler
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -18,11 +18,16 @@ def signal_handler(sig, frame):
 
 def make_app():
     static_path = os.path.join(os.path.dirname(__file__), "static")
+    #outside the project folder
+    file_root_path = os.path.dirname(os.path.dirname(__file__))
+    print("static_path", static_path)
+    print("root_path", file_root_path)
     return tornado.web.Application([
         (r"/toolbox/tool_downloader", VMDownloaderPageHandler, {'static_path': static_path}),
         (r"/toolbox/tool_downloader/api", VMDownloaderAPIHandler, {'static_path': static_path}),
         (r"/toolbox/tool_downloader/websocket/dd", VMDownloaderWebsocketHandler),
         (r"/toolbox/app2", MainHandler),
+        (r"/toolbox/rs_icon/(.*?)$", VMDownloaderIconHandler, {'static_path': file_root_path}),
         (r"/toolbox/static/(.*?)$", StaticFileHandler, {'path': static_path})
     ], debug=True)  # Set debug mode
 

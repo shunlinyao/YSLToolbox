@@ -4,6 +4,7 @@ function downloader_web_block() {
     this.target_url = '';
     this.target_path = '';
     this.current_selected_type = '';
+    this.current_selected_folder_tag = '';
     this.file_tag_relation = {};
     this.tag_list = [];
     this.selected_file = '';
@@ -33,7 +34,6 @@ downloader_web_block.prototype.init_layout = function () {
                         <button class="dld_type_btn" value="scene" style="width:25%;margin:0px;">场景</button>
                     </div>
                     <div id="file_tag_container" style="width:98%; max-height:4rem; display:block;overflow-y:auto;border: 1px solid #ccc;margin-top:0.2rem;padding:0.2rem;padding-bottom:0rem;">
-                        <button class="grid_folder_tag_button" value="1">资源根目录</button>
                     </div>                    
                 </div>
                 
@@ -47,15 +47,15 @@ downloader_web_block.prototype.init_layout = function () {
                     <button id="ls_test_connection" class="dld_btn" style="margin-top:0.2rem;width:100%;">测试对象服务链接</button>
                 </div>
                 
-                <div style="width:98%;height:60%;margin-top:1rem;">            
-                    <div class="dld_base_div" style="height:40%;">
+                <div style="width:98%;height:50%;margin-top:1rem;">            
+                    <div class="dld_base_div" style="height:45%;">
                         <textarea id="json_area" style="height:100%; width:100%;resize:none;border:none;background-color:#fff;" disabled></textarea>
                     </div>
                     <div style="height:50%; width:98%; margin-top:2%; border: 1px solid #333;background-color:#222; border-radius:0.2rem;padding:0.3rem;">
                         <textarea id="terminal_area" style="color:#fff;height:100%; width:100%;resize:none;border:none;background-color:#222;"disabled></textarea>
                     </div>
                 </div>
-                <button id="ls_start_upload" class="dld_btn" style="margin-top:0.3rem;border:2px solid #333;">开始上传</button>
+                <button id="ls_start_upload" class="dld_btn" style="margin-top:1rem;border:2px solid #333;">开始上传</button>
             </div>
             
             <div style="height:100%; width:70%; display:flex; flex-direction:column;padding:0.2rem;">
@@ -95,14 +95,6 @@ downloader_web_block.prototype.init_listener = function () {
     });
     $('#ls_tag_add').click(function () {
         that.tag_handler_action('add_tag');
-    });
-    $('.grid_folder_tag_button').click(function () {
-        $('.grid_folder_tag_button').css('background-color', '#fafafa');
-        $(this).css('background-color', '#ebebeb');
-        let folder_tag = $(this).val();
-        that.current_selected_folder_tag = folder_tag;
-        that.select_type_folder_tag(folder_tag);
-        
     });
 }
 
@@ -185,7 +177,8 @@ downloader_web_block.prototype.select_type_folder_tag = function (folder_tag) {
         alert('路径不能为空');
         return;
     }
-    let request_content = { 'path': that.target_path + '/' + type, 'rs_type': type, 'folder_tag':folder_tag};
+    let type = that.current_selected_type;
+    let request_content = { 'path': that.target_path + '/' + type + folder_tag, 'rs_type': type, 'folder_tag':folder_tag};
     that.resource_action('local_path_tag_tree', request_content);
 }
 
@@ -241,14 +234,8 @@ downloader_web_block.prototype.return_action_handler = function (cmd, in_json) {
     let that = this;
     if (cmd == 'local_path_tree') {
         if ('path_tree' in in_json) {
-            let path_list = in_json['path_tree'];
-            that.fill_file_container(path_list);
-        }
-    }
-    else if (cmd == 'local_path_tag_tree') {
-        if ('path_tree' in in_json) {
-            let path_list = in_json['path_tree'];
-            that.fill_file_container(path_list);
+            let folder_tag_list = in_json['path_tree'];
+            that.fill_folder_tag_container(folder_tag_list);
         }
         if ('file_tag_relation' in in_json) {
             let tag_list = in_json['file_tag_relation']['tag_list'];
@@ -256,6 +243,16 @@ downloader_web_block.prototype.return_action_handler = function (cmd, in_json) {
             that.tag_list = tag_list;
             that.file_tag_relation = in_json['file_tag_relation']['file_json'];
         }
+        let file_container = $('#type_file_container');
+        file_container.empty();
+    }
+    else if (cmd == 'local_path_tag_tree') {
+        if ('path_tree' in in_json) {
+            let path_list = in_json['path_tree'];
+            that.fill_file_container(path_list);
+            that.fill_tag_container(that.tag_list);
+        }
+        
     }
     else if (cmd == 'add_tag') {
 
@@ -292,13 +289,41 @@ downloader_web_block.prototype.fill_tag_container = function (tag_list) {
     });
 }
 
+downloader_web_block.prototype.fill_folder_tag_container = function (tag_list) {
+    let that = this;
+    let folder_tag_container = $('#file_tag_container');
+    folder_tag_container.empty();
+    for (let i = 0; i < tag_list.length; i++) {
+        let folder_name = tag_list[i].split('/').pop();
+        let tag_button = $(`<button class="grid_folder_tag_button" value="${tag_list[i]}">` + folder_name + `</button>`);
+        folder_tag_container.append(tag_button);
+    }
+    $('.grid_folder_tag_button').click(function () {
+        $('.grid_folder_tag_button').css('background-color', '#fafafa');
+        $(this).css('background-color', '#dedede');
+        let folder_tag = $(this).val();
+        that.current_selected_folder_tag = folder_tag;
+        that.select_type_folder_tag(folder_tag);
+        
+    });
+}
+
 downloader_web_block.prototype.fill_file_container = function (file_list) {
     let that = this;
     let file_container = $('#type_file_container');
     file_container.empty();
     for (let i = 0; i < file_list.length; i++) {
         let file_base_name = file_list[i].split('/').pop();
-        let file_button = $(`<button class="grid_file_button" value="${file_list[i]}">` + file_base_name + `</button>`);
+        let file_pure_name = file_base_name.split('.')[0];
+        let folder_tag_name = that.current_selected_folder_tag.split('/').pop();
+        let icon_url = `/toolbox/rs_icon/${that.current_selected_type}/${folder_tag_name}/icon/${file_pure_name}.jpg`
+        let file_button = $(`
+        <button class="grid_file_button" value="${file_list[i]}">
+            <div style="width:100%;align-content:center;">
+                <img src="${icon_url}" style="width:4rem; height:2.2rem;">
+            </div>
+            <p style="margin:0rem;max-width:100%;overflow-x:hidden;">${file_base_name}</p>
+        </button>`);
         file_container.append(file_button);
     }
     $('.grid_file_button').click(function () {
@@ -353,6 +378,12 @@ downloader_web_block.prototype.user_terminal_input = function (cmd, content) {
     }
     else if (cmd == 'add_tag') {
         new_text += '添加标签 NAME - ' + content['tag_name'];
+    }
+    else if (cmd == 'local_path_tag_tree') {
+        new_text += '本地路径标签树获取 PATH - ' + content['path'];
+    }
+    else if (cmd == 'bind_tag') {
+        new_text += '绑定标签';
     }
     else {
         new_text += '未知命令';
@@ -411,6 +442,22 @@ downloader_web_block.prototype.return_terminal_input = function (cmd, json) {
         }
         else {
             new_text += '添加标签成功';
+        }
+    }
+    else if (cmd == 'bind_tag') {
+        if (json['status'] == 0) {
+            new_text += '绑定标签失败';
+        }
+        else {
+            new_text += '绑定标签成功';
+        }
+    }
+    else if (cmd == 'local_path_tag_tree') {
+        if (json['status'] == 0) {
+            new_text += '路径标签树获取失败';
+        }
+        else {
+            new_text += '路径标签树获取成功';
         }
     }
     else {
