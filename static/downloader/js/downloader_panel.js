@@ -410,6 +410,14 @@ downloader_web_block.prototype.return_terminal_input = function (cmd, json) {
         }
         else {
             new_text += '连接成功';
+            if ('type' in json['param']) {
+                if (json['param']['type'] == 0) {
+                    new_text += ' 发布方式: 本地存储';
+                }
+                else if (json['param']['type'] == 1) {
+                    new_text += ' 发布方式: 百度云存储';
+                }                
+            }
         }
     }
     else if (cmd == 'local_path_check') {
@@ -460,6 +468,17 @@ downloader_web_block.prototype.return_terminal_input = function (cmd, json) {
             new_text += '路径标签树获取成功';
         }
     }
+    else if (cmd == 'finished_upload') {
+        if (json['message']['status'] == 0) {
+            new_text += '文件 ' + json['message']['file_name'] + ' 上传完成';
+        }
+        else if (json['message']['status'] == 1) {
+            new_text += '文件 ' + json['message']['file_name'] + ' 上传失败';
+        }
+        else if (json['message']['status'] == 2) {
+            new_text += '文件 ' + json['message']['file_name'] + ' 已存在';
+        }
+    }
     else {
         new_text += '未知命令';
     }
@@ -498,6 +517,12 @@ downloader_web_block.prototype.init_web_socket = function () {
         that.my_socket.onmessage = function (event) {
             console.log("Received: ", event.data);
             let rt_data = JSON.parse(event.data);
+            if ('cmd' in rt_data) {
+                if (rt_data['cmd'] == 'finished_upload') {
+                    that.return_terminal_input('finished_upload', rt_data);
+                }
+
+            }
         };
 
         that.my_socket.onerror = function (error) {

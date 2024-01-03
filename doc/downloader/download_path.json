@@ -1,1 +1,1 @@
-{"target_url": "https://yanshi.shineononline.net", "target_path": "/home/ubuntu/code/file"}
+{"target_url": "https://yanshi.shineononline.net", "target_path": "/home/ubuntu/code/file", "upload_param": {"version": 1, "upload_path": "~/.shc_config/files", "address": "https://yanshi.shineononline.net", "file_url": "/storage", "type": 1, "baidu_cloud": {"bucket_name": "shinone-res", "object_key_path": "beta-res/clip", "account_id": "admin_res", "bos_end_point": "bj.bcebos.com", "ak": "f953d36c20254326acc2f6531319f2e6", "sk": "6cfc2daaea9d4343ba4b8a5315cb81e0"}}}

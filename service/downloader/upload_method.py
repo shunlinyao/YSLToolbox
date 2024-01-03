@@ -2,6 +2,8 @@ import requests
 import json
 import os
 import hashlib
+import service.downloader.SYBosPlugin as SYBosPlugin
+import uuid
 
 class Upload_Function():
     def __init__(self):
@@ -31,7 +33,36 @@ class Upload_Function():
         except Exception as e:
             print("prepare_upload ERROR====>",e,e.__traceback__,e.__traceback__.tb_lineno)
             return {"status": 0, "message": "Prepare upload failed."}
+    def get_type_key(self, ext):
+        low_ext = ext.lower();
+        type_img=[".png", ".bmp", ".jpeg", ".jpg"];
+        if low_ext in type_img:
+            return "image";
+        type_video = [".mp4", ".avi"];
+        if low_ext in type_video:
+            return "video"
+        return "common"    
+    def bos_prepare_upload(self, file_path, filename, upload_config):
+        rt_val = {}  
+        upload_id = uuid.uuid1();
+        file_ext = os.path.splitext(filename)[-1]
+        file_type = self.get_type_key(file_ext);
+        bucket_name = upload_config["bucket_name"]
+        object_key = "{}/{}/{}{}".format(upload_config["object_key_path"],file_type,upload_id,file_ext)
 
+        object = SYBosPlugin.instance(upload_config['bos_end_point'], upload_config);
+        bos_rt = object.put_file(bucket_name, object_key, file_path);
+
+
+        ret_data = {
+            "bucket_name": bucket_name,
+            "object_key": object_key,
+            "url": object.get_url_cdn(bucket_name, object_key),
+            "upload_id": upload_id,
+        }
+
+        return ret_data
+    
     def uploading_file(self, file_path, target_url, rt_file_info, chunk_size=5*1024*1024):  # 3MB chunk size
         print("uploading_file", file_path, target_url)
         try:
@@ -63,6 +94,9 @@ class Upload_Function():
         except Exception as e:
             print("uploading_file ERROR====>", e, e.__traceback__, e.__traceback__.tb_lineno)
             return {"status": 0, "message": "Uploading file failed."}
+
+    def bos_uploading_file(self, rt_file_info):
+        return rt_file_info
 
     def end_upload_file(self, file_path, target_url, rt_file_info):
         object_key = rt_file_info['object_key']

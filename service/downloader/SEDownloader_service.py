@@ -5,16 +5,19 @@ import json
 import requests
 import threading
 import service.downloader.upload_method as upload_method
+import modules.back.common_api as common_api
 
 class CSYDownloaderService():
-
+    main_obj = None
     def __init__(self):
         self.upload_method = upload_method.instance()
+        self.upload_config = {}
         pass
 
     def start_upload_folder_helper(self, path):
         download_json = self.get_downloader_json()
         target_url = download_json['target_url']
+        self.upload_config = download_json['upload_param']
         type_path_tree = self.get_folder_same_level(path)
         out_file_json = {}
         
@@ -22,13 +25,16 @@ class CSYDownloaderService():
             if os.path.basename(type_folder_path) == 'icon':
                 continue            
             rs_type = os.path.basename(type_folder_path)
+            strong_tag_list = []
             for folder_tag_path in self.get_folder_same_level(type_folder_path):
                 if os.path.basename(folder_tag_path) == 'icon':
                     continue
                 folder_tag_tree = self.get_path_same_level(folder_tag_path)
+                if len(folder_tag_tree) != 0:
+                    strong_tag_list.append(os.path.basename(folder_tag_path))
                 for file_path in folder_tag_tree:
                     self.start_upload_file_helper(file_path, target_url, rs_type, folder_tag_path)
-    
+            self.add_multi_strong_tag_request(target_url, strong_tag_list, rs_type)
     def start_upload_file_helper(self, file_path, target_url,rs_type, path):
         print("start_upload_file_helper", file_path)
         thread = threading.Thread(target=self.upload_file, args=(file_path,target_url, rs_type, path))
@@ -37,29 +43,44 @@ class CSYDownloaderService():
 
     def upload_file(self, file_path, target_url, rs_type, local_path):
         file_name = os.path.basename(file_path)
+        upload_mode = 0
+        rt_file_info = {}
+        if self.upload_config['type'] == 0:
+            upload_mode = 0
+        else:
+            upload_mode = 1 
         rt_config = self.upload_method.get_config(target_url)
         if rt_config['status'] == 0:
             return rt_config
+        if upload_mode == 0:
+            rt_file_info = self.upload_method.prepare_upload(file_path, target_url, file_name)
+            
         
-        rt_file_info = self.upload_method.prepare_upload(file_path, target_url, file_name)
         if 'status'in rt_file_info and rt_file_info['status'] == 0:
             return rt_file_info
         md5_code = self.upload_method.get_md5_code(file_path)
         md5_exist_b = self.check_if_md5_exist(md5_code, target_url)
         if md5_exist_b == False:
+            if upload_mode == 1:
+                rt_file_info = self.upload_method.bos_prepare_upload(file_path, file_name, self.upload_config['baidu_cloud'])
             rs_return = self.create_new_resource(rt_file_info, target_url, file_name, rs_type, md5_code)
             tag_list = self.get_file_tag_list(rs_type, file_path)
             tag_return = self.add_resource_tag_request(rt_file_info, target_url, tag_list, rs_type)
-            rt_uploading = self.upload_method.uploading_file(file_path, target_url, rt_file_info)
+            if upload_mode == 0:
+                rt_uploading = self.upload_method.uploading_file(file_path, target_url, rt_file_info)
+            else:
+                rt_uploading = self.upload_method.bos_uploading_file(rt_file_info)
             if 'status'in rt_uploading and rt_uploading['status'] == 0:
                 return rt_uploading
             
             icon_info = self.bind_file_icon(file_name, target_url, local_path)
             finish_rt = self.update_new_resource(rt_uploading, target_url, icon_info,tag_list)
             print("resouce finished uploading", file_name, rt_uploading)
+            self.websocket.send_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_name': file_name, 'status': 0, 'message': 'File uploaded successfully'}}))
             return rt_uploading
         else:
             print("resouce already exist", file_name)
+            self.websocket.send_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_name': file_name, 'status': 3, 'message': 'Resource already exist.'}}))
             return {"status": 1, "message": "Resource already exist."}
     
     def bind_file_icon(self, file_name, target_url, local_path):
@@ -86,15 +107,19 @@ class CSYDownloaderService():
         if rt_config['status'] == 0:
             print('ICON get config failed', file_name)
             return rt_config
-        
-        rt_file_info = self.upload_method.prepare_upload(file_path, target_url, file_name)
+        if self.upload_config['type'] == 0:
+            rt_file_info = self.upload_method.prepare_upload(file_path, target_url, file_name)
+        else:
+            rt_file_info = self.upload_method.bos_prepare_upload(file_path, file_name, self.upload_config['baidu_cloud'])
         if 'status'in rt_file_info and rt_file_info['status'] == 0:
             print('ICON prepare_upload failed', file_name)
             return rt_file_info
         rs_type = folder_name
         # rs_return = self.create_new_resource(rt_file_info, target_url, file_name, rs_type, [], '')
-
-        rt_uploading = self.upload_method.uploading_file(file_path, target_url, rt_file_info)
+        if self.upload_config['type'] == 0:
+            rt_uploading = self.upload_method.uploading_file(file_path, target_url, rt_file_info, self.upload_config['type'])
+        else:
+            rt_uploading = self.upload_method.bos_uploading_file(rt_file_info)
         if 'status'in rt_uploading and rt_uploading['status'] == 0:
             print('ICON upload failed', file_name)
             return rt_uploading
@@ -241,6 +266,18 @@ class CSYDownloaderService():
         response = self.http_request_post(input_url, {'Content-Type' : 'application/json'}, param)
         return response
 
+    def add_multi_strong_tag_request(self, target_url, tag_list, rs_type):
+        input_url = target_url + '/resource/api?command=getresourcesub'
+        param = {
+            'type': 'add_multi_strong_tag',
+            'content': {
+                'tag_list': tag_list,
+                'type': rs_type
+            }
+        };
+        response = self.http_request_post(input_url, {'Content-Type' : 'application/json'}, param)
+        return response
+
     def check_if_md5_exist(self, md5_code, target_url):
         input_url = target_url + '/resource/api?command=getresourcedata'
         param = {
@@ -282,5 +319,11 @@ class CSYDownloaderService():
                         tag_list.append(folder_tag)
                         self.update_tag_file_relation(rs_type, {file_path: tag_list})
         return {"status": 1, "message": "Path do exist."}
+    
+    def register_websocket(self, websocket):
+        self.websocket = websocket
+
 def instance():
-    return CSYDownloaderService()
+    if None == CSYDownloaderService.main_obj:
+        CSYDownloaderService.main_obj = CSYDownloaderService()
+    return CSYDownloaderService.main_obj

@@ -58,6 +58,7 @@ class VMDownloaderAPIHandler(VMRequestHandler):
             dict_object = json.loads(str_object)
             response_json = dict_object
             SEDownloader_service.instance().update_downloader_json('target_url', args['content']['url'])
+            SEDownloader_service.instance().update_downloader_json('upload_param', response_json['param'])
             self.write(response_json)
         except Exception as e:
             print("ERROR====>",e,e.__traceback__,e.__traceback__.tb_lineno)
@@ -138,6 +139,7 @@ class VMDownloaderAPIHandler(VMRequestHandler):
 
 class VMDownloaderWebsocketHandler(websocket.WebSocketHandler):
     def open(self):
+        register = SEDownloader_service.instance().register_websocket(self)
         print("WebSocket opened")
 
     def on_message(self, message):
