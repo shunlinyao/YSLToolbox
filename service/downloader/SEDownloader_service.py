@@ -6,6 +6,7 @@ import requests
 import threading
 import service.downloader.upload_method as upload_method
 import modules.back.common_api as common_api
+from tornado.ioloop import IOLoop
 
 class CSYDownloaderService():
     main_obj = None
@@ -39,6 +40,7 @@ class CSYDownloaderService():
         print("start_upload_file_helper", file_path)
         thread = threading.Thread(target=self.upload_file, args=(file_path,target_url, rs_type, path))
         thread.start()
+        self.websocket.write_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_path': file_path, 'status': 0, 'message': 'Resource already exist.'}}))
         return 
 
     def upload_file(self, file_path, target_url, rs_type, local_path):
@@ -76,11 +78,11 @@ class CSYDownloaderService():
             icon_info = self.bind_file_icon(file_name, target_url, local_path)
             finish_rt = self.update_new_resource(rt_uploading, target_url, icon_info,tag_list)
             print("resouce finished uploading", file_name, rt_uploading)
-            self.websocket.send_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_name': file_name, 'status': 0, 'message': 'File uploaded successfully'}}))
+            # self.websocket.write_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_name': file_name, 'status': 0, 'message': 'File uploaded successfully'}}))
             return rt_uploading
         else:
             print("resouce already exist", file_name)
-            self.websocket.send_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_name': file_name, 'status': 3, 'message': 'Resource already exist.'}}))
+            # self.websocket.write_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_name': file_name, 'status': 3, 'message': 'Resource already exist.'}}))
             return {"status": 1, "message": "Resource already exist."}
     
     def bind_file_icon(self, file_name, target_url, local_path):
@@ -237,7 +239,7 @@ class CSYDownloaderService():
         param = {
             'type': 'update',
             'content': {
-                'id': file_info['id'],
+                'id': file_info['upload_id'],
                 'file': file_info['url'],
                 'upload_status': 'finished'
             }
@@ -322,6 +324,12 @@ class CSYDownloaderService():
     
     def register_websocket(self, websocket):
         self.websocket = websocket
+
+    def send_message_to_websocket(handler, message):
+        if not handler.ws_connection:
+            return  # Check if WebSocket is still open
+
+        handler.write_message(message)
 
 def instance():
     if None == CSYDownloaderService.main_obj:

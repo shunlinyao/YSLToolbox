@@ -3,8 +3,7 @@ import json
 import os
 import hashlib
 import service.downloader.SYBosPlugin as SYBosPlugin
-import uuid
-
+import modules.back.common_api as common_api
 class Upload_Function():
     def __init__(self):
         pass
@@ -44,7 +43,7 @@ class Upload_Function():
         return "common"    
     def bos_prepare_upload(self, file_path, filename, upload_config):
         rt_val = {}  
-        upload_id = uuid.uuid1();
+        upload_id = common_api.uuid1();
         file_ext = os.path.splitext(filename)[-1]
         file_type = self.get_type_key(file_ext);
         bucket_name = upload_config["bucket_name"]
@@ -59,10 +58,15 @@ class Upload_Function():
             "object_key": object_key,
             "url": object.get_url_cdn(bucket_name, object_key),
             "upload_id": upload_id,
+            "file_size": self.get_file_size(file_path),
         }
 
         return ret_data
     
+    def get_file_size(self, file_path):
+        file_size = os.path.getsize(file_path)
+        return file_size
+
     def uploading_file(self, file_path, target_url, rt_file_info, chunk_size=5*1024*1024):  # 3MB chunk size
         print("uploading_file", file_path, target_url)
         try:

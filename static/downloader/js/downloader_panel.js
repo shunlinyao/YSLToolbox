@@ -441,7 +441,7 @@ downloader_web_block.prototype.return_terminal_input = function (cmd, json) {
             new_text += '上传失败';
         }
         else {
-            new_text += '上传成功';
+            new_text += '开始上传';
         }
     }
     else if (cmd == 'add_tag') {
@@ -470,13 +470,13 @@ downloader_web_block.prototype.return_terminal_input = function (cmd, json) {
     }
     else if (cmd == 'finished_upload') {
         if (json['message']['status'] == 0) {
-            new_text += '文件 ' + json['message']['file_name'] + ' 上传完成';
+            new_text += '文件 ' + json['message']['file_path'] + ' 上传完成';
         }
         else if (json['message']['status'] == 1) {
-            new_text += '文件 ' + json['message']['file_name'] + ' 上传失败';
+            new_text += '文件 ' + json['message']['file_path'] + ' 上传失败';
         }
         else if (json['message']['status'] == 2) {
-            new_text += '文件 ' + json['message']['file_name'] + ' 已存在';
+            new_text += '文件 ' + json['message']['file_path'] + ' 已存在';
         }
     }
     else {
