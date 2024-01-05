@@ -188,6 +188,11 @@ class CSYDownloaderService():
         tag_file_relation['resource_tag_relation'][type] = value
         self.set_tag_file_relation(tag_file_relation)
     
+    def update_specific_tag_file_relation(self, type, file_path, tag_list):
+        tag_file_relation = self.get_tag_file_relation()
+        tag_file_relation['resource_tag_relation'][type][file_path] = tag_list
+        self.set_tag_file_relation(tag_file_relation)
+
     def update_tag_list(self, type, value):
         tag_file_relation = self.get_tag_file_relation()
         if value not in tag_file_relation['resouce_tag'][type]:
@@ -319,7 +324,7 @@ class CSYDownloaderService():
                     tag_list = self.get_file_tag_list(rs_type, file_path)
                     if folder_tag not in tag_list: 
                         tag_list.append(folder_tag)
-                        self.update_tag_file_relation(rs_type, {file_path: tag_list})
+                        self.update_specific_tag_file_relation(rs_type, file_path, tag_list)
         return {"status": 1, "message": "Path do exist."}
     
     def register_websocket(self, websocket):
