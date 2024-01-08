@@ -36,6 +36,9 @@ class CSYDownloaderService():
                 for file_path in folder_tag_tree:
                     self.start_upload_file_helper(file_path, target_url, rs_type, folder_tag_path)
             self.add_multi_strong_tag_request(target_url, strong_tag_list, rs_type)
+        self.websocket.write_message(json.dumps({'cmd': 'finished_upload', 'message': {'status': 3, 'message': 'Upload finished.'}}))
+
+
     def start_upload_file_helper(self, file_path, target_url,rs_type, path):
         print("start_upload_file_helper", file_path)
         thread = threading.Thread(target=self.upload_file, args=(file_path,target_url, rs_type, path))

@@ -478,6 +478,9 @@ downloader_web_block.prototype.return_terminal_input = function (cmd, json) {
         else if (json['message']['status'] == 2) {
             new_text += '文件 ' + json['message']['file_path'] + ' 已存在';
         }
+        else if (json['message']['status'] == 3) {
+            new_text += '上传完成';
+        }
     }
     else {
         new_text += '未知命令';
