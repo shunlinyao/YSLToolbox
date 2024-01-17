@@ -4,8 +4,11 @@ import tornado.ioloop
 import signal
 import tornado.web
 import debugpy
+import ptvsd
 from tornado.web import StaticFileHandler
 from request.VMDownloader_handler import VMDownloaderAPIHandler, VMDownloaderPageHandler, VMDownloaderWebsocketHandler, VMDownloaderIconHandler
+import service.downloader.SEDownloader_service as SEDownloader_service
+
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -47,4 +50,10 @@ if __name__ == "__main__":
     print(f"Server started at port {port}")
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
+    tornado.ioloop.PeriodicCallback(SEDownloader_service.instance().upload_msg_loop, 1000).start()
+    debug=0
+    if 0 != debug:
+        print("********debuging port {} Please press F5 do debuging**********".format(debug))
+        ptvsd.enable_attach(address =('0.0.0.0',debug))
+        ptvsd.wait_for_attach()
     tornado.ioloop.IOLoop.current().start()

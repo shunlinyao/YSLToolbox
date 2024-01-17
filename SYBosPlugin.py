@@ -254,7 +254,11 @@ class CSYBosPlugin():
         return key;
         #获取文件名
     def put_file(self, bucket, objectKey, file):
-        ret =  self.bos_client.put_object_from_file(bucket, objectKey, file)
+        try:
+            ret =  self.bos_client.put_object_from_file(bucket, objectKey, file)
+        except Exception as e:
+            print ("put_file Error :=====>", e)
+            return False
         #SYBosPlugin.instance().put_file("luzhi2", "/upload/test.jpg", "fdfd2.jpg")
         return ret;
     def put_string(self, bucket, objectKey, string):

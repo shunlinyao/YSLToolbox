@@ -51,7 +51,8 @@ class Upload_Function():
 
         object = SYBosPlugin.instance(upload_config['bos_end_point'], upload_config);
         bos_rt = object.put_file(bucket_name, object_key, file_path);
-
+        if bos_rt == False:
+            return False
 
         ret_data = {
             "bucket_name": bucket_name,
@@ -135,6 +136,7 @@ class Upload_Function():
                 md5_code = hashlib.md5(f.read()).hexdigest()
         except Exception as e:
             print("get_md5_code ERROR====>",e,e.__traceback__,e.__traceback__.tb_lineno)
+            return False
         return md5_code
 
 def instance():

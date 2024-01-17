@@ -4,16 +4,20 @@ import tornado.web
 import json
 import requests
 import threading
+import copy
 import service.downloader.upload_method as upload_method
 import modules.back.common_api as common_api
 from tornado.ioloop import IOLoop
+import service.downloader.SYWokerThread as SYWorkThread
 
 class CSYDownloaderService():
     main_obj = None
     def __init__(self):
         self.upload_method = upload_method.instance()
         self.upload_config = {}
-        pass
+        self.msg_queue = [];
+        self.msg_start = False;
+        self.msg_lock = threading.Lock();
 
     def start_upload_folder_helper(self, path):
         download_json = self.get_downloader_json()
@@ -21,7 +25,7 @@ class CSYDownloaderService():
         self.upload_config = download_json['upload_param']
         type_path_tree = self.get_folder_same_level(path)
         out_file_json = {}
-        
+        self.msg_start = True;
         for type_folder_path in type_path_tree:
             if os.path.basename(type_folder_path) == 'icon':
                 continue            
@@ -36,14 +40,47 @@ class CSYDownloaderService():
                 for file_path in folder_tag_tree:
                     self.start_upload_file_helper(file_path, target_url, rs_type, folder_tag_path)
             self.add_multi_strong_tag_request(target_url, strong_tag_list, rs_type)
-        self.websocket.write_message(json.dumps({'cmd': 'finished_upload', 'message': {'status': 3, 'message': 'Upload finished.'}}))
+        
+       
+    def upload_msg_loop(self):
+        if self.msg_start == False:
+            return;
+        size = SYWorkThread.instance().task_list_size();
+        msg_list = [];
+        self.msg_lock.acquire();
+        msg_list = copy.deepcopy(self.msg_queue);
+        self.msg_queue = [];
+        self.msg_lock.release()
+        for item in msg_list:
+            self.websocket.write_message(json.dumps(item))
+        if size <= 0:
+            self.msg_start = False
+            self.websocket.write_message(json.dumps({'cmd': 'finished_upload', 'message': {'status': 3, 'message': 'Upload finished.'}}))
 
+    def put_upload_msg(self,msg):
+        print("msg:", msg)
+        self.msg_lock.acquire();       
+        self.msg_queue.append(msg);
+        self.msg_lock.release()
+
+    def upload_file_proc(self, param):
+        self.put_upload_msg({'cmd': 'start_upload', 'message': {'file_path': param["file_path"], 'status': 0, 'message': '开始上传文件.'}})
+        self.upload_file(param["file_path"], param["target_url"], param["rs_type"], param["local_path"])
+        self.put_upload_msg({'cmd': 'finished_upload', 'message': {'file_path': param["file_path"], 'status': 0, 'message': '结束上传文件'}})
 
     def start_upload_file_helper(self, file_path, target_url,rs_type, path):
-        print("start_upload_file_helper", file_path)
-        thread = threading.Thread(target=self.upload_file, args=(file_path,target_url, rs_type, path))
-        thread.start()
-        self.websocket.write_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_path': file_path, 'status': 0, 'message': 'Resource already exist.'}}))
+        #print("start_upload_file_helper", file_path)
+        #thread = threading.Thread(target=self.upload_file, args=(file_path,target_url, rs_type, path))
+        #thread.start()
+        param = {
+          "file_path":file_path,
+          "target_url":target_url, 
+          "rs_type":rs_type, 
+          "local_path":path,
+          "object":self
+        }
+        SYWorkThread.instance().put_request(self.upload_file_proc,param)
+        #self.websocket.write_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_path': file_path, 'status': 0, 'message': 'Resource already exist.'}}))
         return 
 
     def upload_file(self, file_path, target_url, rs_type, local_path):
@@ -56,6 +93,7 @@ class CSYDownloaderService():
             upload_mode = 1 
         rt_config = self.upload_method.get_config(target_url)
         if rt_config['status'] == 0:
+            self.add_error_log_to_file(file_path, 'get_config failed.')
             return rt_config
         if upload_mode == 0:
             rt_file_info = self.upload_method.prepare_upload(file_path, target_url, file_name)
@@ -64,10 +102,16 @@ class CSYDownloaderService():
         if 'status'in rt_file_info and rt_file_info['status'] == 0:
             return rt_file_info
         md5_code = self.upload_method.get_md5_code(file_path)
+        if md5_code == False:
+            self.add_error_log_to_file(file_path, 'get_md5_code failed.')
+            return {"status": 0, "message": "Get md5 code failed."}
         md5_exist_b = self.check_if_md5_exist(md5_code, target_url)
         if md5_exist_b == False:
             if upload_mode == 1:
                 rt_file_info = self.upload_method.bos_prepare_upload(file_path, file_name, self.upload_config['baidu_cloud'])
+                if rt_file_info == False:
+                    self.add_error_log_to_file(file_path, 'bos_prepare_upload failed.')
+                    return {"status": 0, "message": "bos_prepare_upload failed."}
             rs_return = self.create_new_resource(rt_file_info, target_url, file_name, rs_type, md5_code)
             tag_list = self.get_file_tag_list(rs_type, file_path)
             tag_return = self.add_resource_tag_request(rt_file_info, target_url, tag_list, rs_type)
@@ -76,6 +120,8 @@ class CSYDownloaderService():
             else:
                 rt_uploading = self.upload_method.bos_uploading_file(rt_file_info)
             if 'status'in rt_uploading and rt_uploading['status'] == 0:
+                print("upload file error*****************", file_name, rt_uploading)
+                self.add_error_log_to_file(file_path, 'uploading_file failed.')
                 return rt_uploading
             
             icon_info = self.bind_file_icon(file_name, target_url, local_path)
@@ -84,7 +130,8 @@ class CSYDownloaderService():
             # self.websocket.write_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_name': file_name, 'status': 0, 'message': 'File uploaded successfully'}}))
             return rt_uploading
         else:
-            print("resouce already exist", file_name)
+            print("================资源已存在", file_name)
+            self.add_error_log_to_file(file_path, 'Resource already existed.')
             # self.websocket.write_message(json.dumps({'cmd': 'finished_upload', 'message': {'file_name': file_name, 'status': 3, 'message': 'Resource already exist.'}}))
             return {"status": 1, "message": "Resource already exist."}
     
@@ -103,7 +150,7 @@ class CSYDownloaderService():
             if new_icon_path != '':
                 icon_info = self.upload_icon(new_icon_path, target_url, 'image')
             if 'status' in icon_info and icon_info['status'] == 0:
-                return ''
+                return {}
         return icon_info
     
     def upload_icon(self, file_path, target_url, folder_name):
@@ -116,6 +163,9 @@ class CSYDownloaderService():
             rt_file_info = self.upload_method.prepare_upload(file_path, target_url, file_name)
         else:
             rt_file_info = self.upload_method.bos_prepare_upload(file_path, file_name, self.upload_config['baidu_cloud'])
+            if rt_file_info == False:
+                self.add_error_log_to_file(file_path, 'bos_prepare_upload failed.')
+                return {"status": 0, "message": "bos_prepare_upload failed."}
         if 'status'in rt_file_info and rt_file_info['status'] == 0:
             print('ICON prepare_upload failed', file_name)
             return rt_file_info
@@ -126,7 +176,7 @@ class CSYDownloaderService():
         else:
             rt_uploading = self.upload_method.bos_uploading_file(rt_file_info)
         if 'status'in rt_uploading and rt_uploading['status'] == 0:
-            print('ICON upload failed', file_name)
+            print('ICON upload failed', file_name, rt_uploading)
             return rt_uploading
         icon_info = {'url': rt_uploading['url'], 'bucket_name': rt_file_info['bucket_name'], 'object_key': rt_file_info['object_key']}
         # finish_rt = self.update_new_resource(rt_uploading, target_url, rt_uploading['url'])
@@ -206,6 +256,10 @@ class CSYDownloaderService():
         with open('doc/downloader/tag_file_match.json', 'r', encoding='utf-8') as f:
             tag_file_relation = json.load(f)
         return tag_file_relation
+    
+    def add_error_log_to_file(self, file_path, error_message):
+        with open('doc/downloader/error_log.txt', 'a', encoding='utf-8') as f:
+            f.write('upload failed' + file_path + ' ' + error_message + '\n')
     
     def get_file_tag_list(self, type, file_path):
         tag_file_relation = self.get_tag_file_relation()
